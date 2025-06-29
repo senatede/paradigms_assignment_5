@@ -3,6 +3,8 @@
 #include <unordered_set>
 #include <vector>
 #include <stack>
+#include <ranges>
+#include <iomanip>
 
 std::unordered_map<std::string, int> precedence = {
     {"*", 3},
@@ -12,12 +14,17 @@ std::unordered_map<std::string, int> precedence = {
 };
 std::unordered_set<std::string> functions = {"pow", "abs", "max", "min"};
 
+
+bool is_digit(const std::string& str) {
+    return std::ranges::all_of(str, [](const char ch) { return (std::isdigit(ch) || ch == '.'); });
+}
+
 std::vector<std::string> tokenize(const std::string& infix) {
     std::vector<std::string> tokens;
     std::string number;
     std::string func;
     for (char ch : infix) {
-        if (std::isdigit(ch)) number += ch;
+        if (std::isdigit(ch) || ch == '.') number += ch;
         else {
             if (!number.empty()) {
                 tokens.push_back(number);
@@ -29,7 +36,7 @@ std::vector<std::string> tokenize(const std::string& infix) {
                     func.clear();
                 }
             }
-            else if (ch == '(' || ch == ')') {
+            else if (ch == '(' || ch == ')' || ch == '-') {
                 if (!func.empty()) {
                     tokens.emplace_back(func);
                     func.clear();
@@ -50,7 +57,7 @@ std::vector<std::string> shunting_yard(const std::string& infix) {
     auto tokens = tokenize(infix);
 
     for (const std::string& token : tokens) {
-        if (std::isdigit(token[0])) output.push_back(token);
+        if (is_digit(token)) output.push_back(token);
         else if (functions.contains(token)) op_stack.push(token);
         else if (precedence.contains(token)) {
             while (!op_stack.empty() && op_stack.top() != "(" && precedence[op_stack.top()] >= precedence[token]) {
@@ -85,42 +92,47 @@ std::vector<std::string> shunting_yard(const std::string& infix) {
     return output;
 }
 
-float calculate(const std::string& infix) {
-    auto tokens = shunting_yard(infix);
-    std::stack<float> S;
+double calculate(const std::string& infix) {
+    const auto tokens = shunting_yard(infix);
+    if (tokens.empty()) return std::numeric_limits<double>::infinity();
+
+    std::stack<double> S;
     for (const std::string& token : tokens) {
-        if (std::isdigit(token[0])) {
-            S.push(std::stof(token));
+        if (is_digit(token)) {
+            S.push(std::stod(token));
         }
         else {
-            float b = S.top(); S.pop();
-            float a = S.top(); S.pop();
-            if (token == "+") S.push(a + b);
-            else if (token == "-") S.push(a - b);
-            else if (token == "*") S.push(a * b);
-            else if (token == "/") S.push(a / b);
-            else if (token == "pow") S.push(pow(a, b));
-            else if (token == "abs") S.push(std::abs(a));
-            else if (token == "max") S.push(std::max(a, b));
-            else if (token == "min") S.push(std::min(a, b));
+            double b = S.top(); S.pop();
+            if (token == "abs") S.push(std::abs(b));
+            else {
+                double a;
+                if (!S.empty()) {
+                    a = S.top();
+                    S.pop();
+                }
+                else if (token == "-") a = 0.0;
+                else return std::numeric_limits<double>::infinity();
+
+                if (token == "+") S.push(a + b);
+                else if (token == "-") S.push(a - b);
+                else if (token == "*") S.push(a * b);
+                else if (token == "/") S.push(a / b);
+                else if (token == "pow") S.push(pow(a, b));
+                else if (token == "max") S.push(std::max(a, b));
+                else if (token == "min") S.push(std::min(a, b));
+            }
         }
     }
     return S.top();
 }
 
-int main() {
-    auto input = "max(min(3 * 2, 2), 2)";
-    for (const auto& token : tokenize(input)) {
-        std::cout << token << " ";
-    }
-    std::cout << std::endl;
+[[noreturn]] int main() {
+    while (true) {
+        std::string input;
+        std::getline(std::cin, input);
 
-    auto result = shunting_yard(input);
-    for (const auto& token : result) {
-        std::cout << token << " ";
+        double result = calculate(input);
+        if (result == std::numeric_limits<double>::infinity()) std::cout << "Wrong input" << std::endl;
+        else std::cout << std::setprecision(10) << calculate(input) << std::endl;
     }
-    std::cout << std::endl;
-
-    std::cout << calculate(input) << std::endl;
-    return 0;
 }
