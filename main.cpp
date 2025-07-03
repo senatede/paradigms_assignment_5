@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <sstream>
 
+#define TEST_MODE false
+
 std::unordered_map<std::string, int> precedence = {
     {"*", 3},
     {"/", 3},
@@ -30,36 +32,36 @@ std::vector<std::string> tokenize(const std::string& infix);
 double calculate(std::vector<std::string>& tokens, const std::unordered_map<std::string, double>& variables);
 
 
-[[noreturn]] int main() {
+int main() {
     auto get_input = []() {
         std::string input;
         std::getline(std::cin, input);
 
         if (input == "vars") {
             print_variables();
-            return;
+            return false;
         }
         if (input == "defs") {
             print_functions();
-            return;
+            return false;
         }
         if (input.starts_with("var ")) {
             variable_definition(input);
-            return;
+            return false;
         }
         if (input.starts_with("def ")) {
             function_definition(input);
-            return;
-
+            return false;
         }
         input.erase(std::ranges::remove_if(input, ::isspace).begin(), input.end());
         auto tokens = tokenize(input);
         const double result = calculate(tokens, global_variables);
         if (result == std::numeric_limits<double>::infinity()) std::cout << "Incorrect expression" << std::endl;
-        else std::cout << std::setprecision(10) << result << std::endl;
+        else std::cout << (TEST_MODE ? "Echo: " : "") << std::setprecision(10) << result << std::endl;
+        return true;
     };
     while (true) {
-        get_input();
+        if (get_input() && TEST_MODE) return 0;
     }
 }
 
